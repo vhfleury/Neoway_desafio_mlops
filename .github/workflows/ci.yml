@@ -1,0 +1,27 @@
+name: CI Pipeline
+
+on: [push]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 pytest pyspark redis
+
+      - name: Linter (flake8)
+        run: |
+          flake8 spark_processing airflow
+
+      - name: Run unit tests
+        run: |
+          pytest -q spark_processing/tests
