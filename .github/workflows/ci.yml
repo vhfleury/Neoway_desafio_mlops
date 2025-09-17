@@ -20,8 +20,8 @@ jobs:
 
       - name: Linter (flake8)
         run: |
-          flake8 spark_processing airflow
+          flake8 airflow connections tests spark_processing
 
       - name: Run unit tests
         run: |
-          pytest -q spark_processing/tests
+          pytest -q tests
