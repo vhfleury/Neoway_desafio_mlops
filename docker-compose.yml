@@ -1,0 +1,86 @@
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@db/airflow
+  AIRFLOW__WEBSERVER__AUTH_BACKEND: airflow.www.fab_auth.backends.auth_db
+  AIRFLOW__WEBSERVER__SECRET_KEY: 123456789
+  PYTHONPATH: /opt/airflow:/opt/airflow/spark_processing:/opt/airflow/connections
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: airflow_custom:latest
+  environment: *airflow-env
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./spark_processing:/opt/airflow/spark_processing
+    - ./connections:/opt/airflow/connections
+    - ./tests:/opt/airflow/tests
+    - ./data/features_empresas:/opt/airflow/data/features_empresas
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    command: ["redis-server","--appendonly","yes"]
+    ports:
+      - "6379:6379"
+
+  airflow-init:
+    <<: *airflow-common
+    depends_on:
+      - db
+    command:
+      - bash
+      - -c
+      - >
+        airflow db init &&
+        airflow users create --username airflow --password airflow
+        --firstname Air --lastname Flow --role Admin --email admin@example.com
+
+  airflow-scheduler:
+    <<: *airflow-common
+    depends_on:
+      - db
+      - redis
+      - airflow-init
+    command: ["airflow","scheduler"]
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+
+  airflow-webserver:
+    <<: *airflow-common
+    depends_on:
+      - db
+      - redis
+      - airflow-init
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+    environment:
+      <<: *airflow-env
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@db/airflow
+    command: webserver
