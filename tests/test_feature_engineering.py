@@ -2,11 +2,13 @@ import pytest
 from pyspark.sql import SparkSession
 from spark_processing import features_empresas
 
+
 @pytest.fixture(scope="module")
 def spark():
     spark = SparkSession.builder.master("local[1]").appName("pytest-spark").getOrCreate()
     yield spark
     spark.stop()
+
 
 def test_city_features(spark):
     data = [
@@ -18,8 +20,14 @@ def test_city_features(spark):
     df = spark.createDataFrame(data, schema=columns)
     result_df = features_empresas.city_features(df)
 
-    result = { row['cidade']: (row['capital_social_total'], row['quantidade_empresas'], round(row['capital_social_medio'], 2))
-               for row in result_df.collect() }
+    result = {
+        row['cidade']: (
+            row['capital_social_total'],
+            row['quantidade_empresas'],
+            round(row['capital_social_medio'], 2)
+        )
+        for row in result_df.collect()
+    }
 
     assert "São Paulo" in result
     total_sp, count_sp, avg_sp = result["São Paulo"]
