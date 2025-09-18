@@ -2,13 +2,10 @@ import logging
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import sum as spark_sum, count as spark_count, col, lit
 import connections.cache as cache
-import utils
+from spark_processing import utils
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-OUTPUT_DIR = "/opt/airflow/data/features_empresas/processed"
 
 
 def city_features(df):
