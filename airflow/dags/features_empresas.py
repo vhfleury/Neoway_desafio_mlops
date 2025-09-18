@@ -50,7 +50,7 @@ with DAG(
             "input_path": "{{ dag_run.conf.get('csv_path', params.csv_path) }}",
             "output_dir": "/opt/airflow/data/features_empresas/processed",
             "run_date": "{{ ds }}",
-            }
+        }
     )
 
     start >> check_redis >> feature

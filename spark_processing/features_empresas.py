@@ -2,13 +2,10 @@ import logging
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import sum as spark_sum, count as spark_count, col, lit
 import connections.cache as cache
-import utils
+from spark_processing import utils
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-OUTPUT_DIR = "/opt/airflow/data/features_empresas/processed"
 
 
 def city_features(df):
@@ -38,20 +35,19 @@ def save_features_to_redis(features_df):
 
         cache.save_hset(client, cidade, mapping)
         logger.info(f"'{cidade}' - saved successfully: {mapping}")
-    logger.info("all data saved to Redis")
+    logger.info("Data successfully saved to Redis")
 
 
 def write_parquet(df, output_dir, run_date: str):
     (
         df.withColumn("run_date", lit(run_date))
           .write
-          .mode("overwrite")                       
-          .partitionBy("run_date")                 
+          .mode("overwrite")
+          .partitionBy("run_date")
           .option("compression", "snappy")
           .parquet(output_dir)
     )
-
-
+    logger.info("Data successfully saved to Parquet")
 
 
 def run_feature(input_path: str, output_dir: str, run_date: str):
@@ -59,20 +55,18 @@ def run_feature(input_path: str, output_dir: str, run_date: str):
         spark = SparkSession.builder.master("local[*]").appName("FeaturePipeline").getOrCreate()
         logger.info(f"open csv on path {input_path} ...")
         df = utils.open_csv(spark, input_path)
-        
+
         logger.info("Calculating aggregated features by city...")
         df_features = city_features(df)
-        
-        logger.info(f"save features on Redis ...")
+
+        logger.info("save features on Redis ...")
         save_features_to_redis(df_features)
-        
-        logger.info(f"save features parquet ...")
+
+        logger.info("save features parquet ...")
         write_parquet(df_features, output_dir, run_date)
-        
-        
-        
+
         spark.stop()
-        
+
         logger.info("Pipeline de feature engineering concluído com sucesso.")
     except Exception as e:
         logger.error(f"Error in feature engineering: {e}", exc_info=True)
